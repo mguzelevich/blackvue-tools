@@ -1,0 +1,13 @@
+[firmware]
+version = 1.004
+model = 650S2
+language = Russian
+[software]
+version = 2.57
+model = 650S2
+language = Russian
+[config]
+version = 1.062
+model = 650S2
+[local]
+region = 0
