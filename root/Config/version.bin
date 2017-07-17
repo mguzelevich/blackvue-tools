@@ -2,12 +2,16 @@
 version = 1.007
 model = 650S2
 language = Russian
+
 [software]
 version = 1.10
 model = 650S2
 language = Russian
+
 [config]
 version = 1.065
 model = 650S2
+
 [local]
 region = 0
+
