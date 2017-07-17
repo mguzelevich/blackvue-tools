@@ -68,3 +68,7 @@ The reason is that dashcams put microSD cards under higher stress than most elec
 Using third party microSD cards can affect dashcams’ performance and in some cases, force the dashcam to reboot randomly during recording. Although the basic requirement of the microSD cards for BlackVue dashcams is Class 10 or U1 and that the SD card should be formatted as FAT32 [Windows] or MS-DOS (FAT) [Mac OS], we cannot guarantee the perfect performance of cards from other manufacturers, as even cards with same specifications may vary from batch to batch.
 
 Every BlackVue dashcam comes with an original BlackVue microSD card. In case it is missing or replaced by a third-party microSD card at the time of purchase, please contact the seller to make sure you get a genuine BlackVue microSD card.
+
+# links
+
+http://aprs.gids.nl/nmea/
