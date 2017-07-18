@@ -1,8 +1,10 @@
 #!/bin/python
 
 import argparse
-import csv
+import datetime
+import json
 import os
+import pathlib
 import re
 import select
 import subprocess
@@ -18,8 +20,9 @@ TS = strftime("%Y%m%d_%H%M%S", gmtime())
 DRY_RUN = True
 
 # [1500310610235]$GPGLL,5355.68249,N,02738.67852,E,135648.00,A,A*63
-LINE_RE_STRING = r'\[([0-9]+)\]\$GP([A-Z]+),(.+)' 
+LINE_RE_STRING = r'\[([0-9]+)\]\$GP([A-Z]+),(.+)'
 LINE_RE = re.compile(LINE_RE_STRING)
+
 
 def exec_cmd(cwd, cmd, *args):
     logger.debug('exec_cmd %s %s %s', cwd, cmd, args)
@@ -40,12 +43,41 @@ def exec_cmd(cwd, cmd, *args):
 
 
 def merge_gps(input_data):
-    pass
+    keys = sorted(input_data.keys())
+    chunks = {}
 
-commands = {}
+    start_ts = keys[0] if len(keys) else None
+    last_ts = None
+
+    chunk = {
+        'start': datetime.datetime.fromtimestamp(start_ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        'points': [],
+    }
+
+    for i, ts in enumerate(keys):
+        if last_ts and ts - last_ts > 5000:
+            chunk['end'] = datetime.datetime.fromtimestamp(last_ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            chunks[(start_ts, last_ts)] = chunk
+            chunk = {
+                'start': datetime.datetime.fromtimestamp(start_ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                'points': [],
+            }
+            start_ts = ts
+        chunk['points'].append(input_data[ts])
+        last_ts = ts
+    if chunk:
+        chunk['end'] = datetime.datetime.fromtimestamp(last_ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        chunks[(start_ts, last_ts)] = chunk
+
+    for i, ch in enumerate(chunks):
+        logger.debug('%s. %s', i, (chunks[ch]['start'], chunks[ch]['end']))
+
+    print(json.dumps(chunks[ch], indent='  '))
+
 
 def handler_dafault(cmd, *args):
-    print('unknown command [{0}] {1}', cmd, args)
+    logger.warning('unknown command [%s] %s', cmd, args)
+
 
 """
 $GPRMC,220516,A,5133.82,N,00042.24,W,173.8,231.8,130694,004.2,W*70
@@ -78,8 +110,9 @@ $GPRMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,ddmmyy,x.x,a*hh
 11   = E or W
 12   = Checksum
 """
+
+
 def handler_RMC(cmd, *args):
-    logger.debug('%s fields %s len %s', cmd, args, len(args))
     (
         fix_time,           # Fix taken at 12:35:19 UTC
         status,             # Status A=active or V=Void.
@@ -91,7 +124,7 @@ def handler_RMC(cmd, *args):
         angle,              # Track angle in degrees True
         date,               # Date - 23rd of March 1994
         x1,                 # UNKNOWN FIELD
-        magnetic_variation, # Magnetic Variation
+        magnetic_variation,  # Magnetic Variation
         fix_type            # fix_type
     ) = args
     if x1:
@@ -108,6 +141,7 @@ def handler_RMC(cmd, *args):
         'magnetic_variation': magnetic_variation,
         'fix_type': fix_type,
     }
+
 
 """
 eg1. $GPVTG,360.0,T,348.7,M,000.0,N,000.0,K*43
@@ -137,8 +171,9 @@ x.x,M = Track, degrees Magnetic
 x.x,N = Speed, knots 
 x.x,K = Speed, Km/hr
 """
+
+
 def handler_VTG(cmd, *args):
-    logger.debug('%s fields %s len %s', cmd, args, len(args))
     (
         track_mode,     # Track made good
         true_north,     # Fixed text 'T' indicates that track made good is relative to true north
@@ -147,7 +182,7 @@ def handler_VTG(cmd, *args):
         speed_kn,       # Speed over ground in knots
         speed_kn_sign,  # Fixed text 'N' indicates that speed over ground in in knots
         speed_kmh,      # Speed over ground in kilometers/hour
-        speed_kmh_sign, # Fixed text 'K' indicates that speed over ground is in kilometers/hour
+        speed_kmh_sign,  # Fixed text 'K' indicates that speed over ground is in kilometers/hour
         fix_type        # fix_type
     ) = args
     # if x1 or x2:
@@ -196,13 +231,15 @@ eg3. $GPGGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx*hh
 14   = Diff. reference station ID#
 15   = Checksum
 """
+
+
 def handler_GGA(cmd, *args):
-    logger.debug('%s fields %s len %s', cmd, args, len(args))
-#    (
-#    ) = args
+    #    (
+    #    ) = args
 
     return {
     }
+
 
 """
 eg1. $GPGSA,A,3,,,,,,16,18,,22,24,,,3.6,2.1,2.2*3C
@@ -221,13 +258,15 @@ eg2. $GPGSA,A,3,19,28,14,18,27,22,31,39,,,,,1.7,1.0,1.3*35
 16   = HDOP
 17   = VDOP
 """
+
+
 def handler_GSA(cmd, *args):
-    logger.debug('%s fields %s len %s', cmd, args, len(args))
-#    (
-#    ) = args
+    #    (
+    #    ) = args
 
     return {
     }
+
 
 """
 GPS Satellites in view
@@ -251,13 +290,15 @@ eg. $GPGSV,3,1,11,03,03,111,00,04,15,270,00,06,01,010,00,13,06,292,00*74
 12-15= Information about third SV, same as field 4-7
 16-19= Information about fourth SV, same as field 4-7
 """
+
+
 def handler_GSV(cmd, *args):
-    logger.debug('%s fields %s len %s', cmd, args, len(args))
-#    (
-#    ) = args
+    #    (
+    #    ) = args
 
     return {
     }
+
 
 """
 Geographic Position, Latitude / Longitude and time.
@@ -288,16 +329,17 @@ a = E or W
 hhmmss.ss = UTC of position 
 A = status: A = valid data 
 """
+
+
 def handler_GLL(cmd, *args):
-    logger.debug('%s fields %s len %s', cmd, args, len(args))
     (
         lat,        # Current latitude
-        north_south, # North/South
+        north_south,  # North/South
         lng,        # Current longitude
         east_west,  # East/West
         utc,        # UTC of position
         status,     # status
-        valid_data, # valid data
+        valid_data,  # valid data
     ) = args
 
     return {
@@ -308,24 +350,25 @@ def handler_GLL(cmd, *args):
         'valid_data': valid_data,
     }
 
+
 def handler_TXT(cmd, *args):
-    logger.debug('%s fields %s len %s', cmd, args, len(args))
-#    (
-#    ) = fields
+    #    (
+    #    ) = fields
 
     return {
     }
 
 
 handlers = {
-    'RMC': handler_RMC, # minimum recommended data
-    'VTG': handler_VTG, # vector track and speed over ground
-    'GGA': handler_GGA, # fix data
-    'GSA': handler_GSA, # overall satellite reception data, missing on some Garmin models
-    'GSV': handler_GSV, # detailed satellite data, missing on some Garmin models
-    'GLL': handler_GLL, # Lat/Lon data - earlier G-12's do not transmit this
-    'TXT': handler_TXT, # ???
-}   
+    'RMC': handler_RMC,  # minimum recommended data
+    'VTG': handler_VTG,  # vector track and speed over ground
+    'GGA': handler_GGA,  # fix data
+    'GSA': handler_GSA,  # overall satellite reception data, missing on some Garmin models
+    'GSV': handler_GSV,  # detailed satellite data, missing on some Garmin models
+    'GLL': handler_GLL,  # Lat/Lon data - earlier G-12's do not transmit this
+    'TXT': handler_TXT,  # ???
+}
+
 
 def process_line(data, line):
     line = line.strip()
@@ -334,17 +377,19 @@ def process_line(data, line):
 
     m = LINE_RE.match(line)
     if not m:
-        print('S: {0}'.format(line))
+        logger.debug('S: [%s]', line)
         return
-    ts, cmd, params = m.group(1), m.group(2), m.group(3)
+    ts, cmd, args = m.group(1), m.group(2), m.group(3)
+    ts = int(ts)
 
-    # print('A: {0} -> {1}'.format(line, (ts, cmd, params)))
-    d = data.setdefault(ts, {})
+    # print('A: {0} -> {1}'.format(line, (ts, cmd, args)))
+    data.setdefault(ts, {'timestamp': datetime.datetime.fromtimestamp(ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ')})
 
-    params, checksum = params.split('*')
-    params = params.split(',')
+    args, checksum = args.split('*')
+    args = args.split(',')
 
-    data[ts][cmd] = handlers.get(cmd, handler_dafault)(cmd, *params)
+    logger.debug('[%s] %s fields %s len %s', ts, cmd, args, len(args))
+    data[ts][cmd] = handlers.get(cmd, handler_dafault)(cmd, *args)
 
 
 def process_input(src):
@@ -360,6 +405,8 @@ def process_input(src):
         for root, dirs, files in os.walk(src):
             for filename in files:
                 filepath = os.path.join(root, filename)
+                if pathlib.Path(filepath).suffix != '.gps':
+                    continue
                 try:
                     with open(filepath) as f:
                         for l in f:

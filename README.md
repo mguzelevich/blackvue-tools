@@ -1,5 +1,11 @@
 # blackvue tools
 
+##
+
+```
+python3 blackvue.py --debug --src ./examples --merge-gps > /tmp/out.json
+```
+
 ## set label to card
 
 ```
