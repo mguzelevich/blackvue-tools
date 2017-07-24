@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import json
+import io
 import os
 import pathlib
 import select
@@ -46,6 +47,9 @@ def process_gps_input(src):
 
     if select.select([sys.stdin, ], [], [], 0.0)[0]:
         logger.debug('process_gps_input: read from stdin')
+        # locale.getpreferredencoding(do_setlocale=True)
+        # locale.setlocale(locale.LC_ALL, '')
+        sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="latin-1")
         input_files.append('<STDIN>')
     else:
         logger.debug('process_gps_input: read from filesystem')
@@ -58,6 +62,7 @@ def process_gps_input(src):
                 input_files.append(filepath)
 
     for i, filepath in enumerate(input_files):
+        logger.info('process_gps_input: file [%s]', filepath)
         try:
             with sys.stdin if filepath == '<STDIN>' else open(filepath, encoding="latin-1") as f:
                 for nmea_string in f:

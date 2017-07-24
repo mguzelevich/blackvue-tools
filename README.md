@@ -4,6 +4,8 @@
 
 ```
 python3 blackvue.py --debug --src ./examples --merge-gps > /tmp/out.json
+
+cat ./examples/*.gps | python3 blackvue.py --debug --merge-gps > /tmp/out.json 2> /tmp/log
 ```
 
 ## set label to card
