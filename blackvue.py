@@ -42,12 +42,11 @@ def exec_cmd(cwd, cmd, *args):
 def process_gps_input(src):
     nmea_parser = nmea.NMEA()
 
+    input_files = []
+
     if select.select([sys.stdin, ], [], [], 0.0)[0]:
         logger.debug('process_gps_input: read from stdin')
-        with sys.stdin as f:
-            for nmea_string in f:
-                nmea_parser.process_message(nmea_string)
-                # print('{0}'.format(line), end='\n')
+        input_files.append('<STDIN>')
     else:
         logger.debug('process_gps_input: read from filesystem')
         for root, dirs, files in os.walk(src):
@@ -55,17 +54,17 @@ def process_gps_input(src):
                 filepath = os.path.join(root, filename)
                 if pathlib.Path(filepath).suffix != '.gps':
                     continue
-                try:
-                    with open(filepath) as f:
-                        for nmea_string in f:
-                            nmea_parser.process_message(nmea_string)
-                except Exception as e:
-                    logger.debug('%s skipped %s', filepath, e)
-            # print(root, "consumes", end=" ")
-            # print(sum(os.path.getsize(os.path.join(root, name)) for name in files), end=" ")
-            # print("bytes in", len(files), "non-directory files")
-            # if 'CVS' in dirs:
-            #     dirs.remove('CVS')  # don't visit CVS directories
+                logger.debug('process_gps_input: add file [%s]', filepath)
+                input_files.append(filepath)
+
+    for i, filepath in enumerate(input_files):
+        try:
+            with sys.stdin if filepath == '<STDIN>' else open(filepath, encoding="latin-1") as f:
+                for nmea_string in f:
+                    nmea_parser.process_message(nmea_string)
+        except Exception as e:
+            logger.error('process_gps_input: file [%s] skipped with error [%s]', filepath, e)
+
     return nmea_parser.get_data()
 
 
@@ -118,6 +117,8 @@ def init():
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(fullFormatter)
     logger.addHandler(fh)
+
+    nmea.logger = logger
 
 
 def main():

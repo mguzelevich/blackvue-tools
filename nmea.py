@@ -5,7 +5,7 @@ import re
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+# logger.setLevel(logging.INFO)
 
 
 # [1500310610235]$GPGLL,5355.68249,N,02738.67852,E,135648.00,A,A*63
@@ -63,7 +63,7 @@ class NMEA(object):
 
         m = LINE_RE.match(nmea_string)
         if not m:
-            logger.debug('S: [%s]', nmea_string)
+            logger.warning('nmea.process_message: skip message [%s]', nmea_string)
             return
         ts, cmd, args = m.group(1), m.group(2), m.group(3)
         ts = int(ts)
