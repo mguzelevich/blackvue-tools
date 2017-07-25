@@ -38,6 +38,14 @@ def nmea_datetime(fix_date, fix_time):
     return dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
+class SkippedLine(Exception):
+    pass
+
+
+class IncorrectLine(Exception):
+    pass
+
+
 class NMEA(object):
 
     def __init__(self):
@@ -59,23 +67,22 @@ class NMEA(object):
     def process_message(self, nmea_string):
         nmea_string = nmea_string.strip()
         if not nmea_string:
-            return
+            raise SkippedLine()
 
         m = LINE_RE.match(nmea_string)
         if not m:
-            logger.warning('nmea.process_message: skip message [%s]', nmea_string)
-            return
+            raise IncorrectLine(repr(nmea_string))
+
         ts, cmd, args = m.group(1), m.group(2), m.group(3)
         ts = int(ts)
 
         # print('A: {0} -> {1}'.format(line, (ts, cmd, args)))
-        self.data.setdefault(ts, {'timestamp': datetime.datetime.fromtimestamp(ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ')})
-
         args, checksum = args.split('*')
         args = args.split(',')
 
         logger.debug('[%s] %s fields %s len %s', ts, cmd, args, len(args))
 
+        self.data.setdefault(ts, {'timestamp': datetime.datetime.fromtimestamp(ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ')})
         self.data[ts].update(self.handlers.get(cmd, self.handler_dafault)(cmd, *args))
 
     def handler_dafault(self, cmd, *args):

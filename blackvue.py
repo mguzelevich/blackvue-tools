@@ -65,8 +65,15 @@ def process_gps_input(src):
         logger.info('process_gps_input: file [%s]', filepath)
         try:
             with sys.stdin if filepath == '<STDIN>' else open(filepath, encoding="latin-1") as f:
+                idx = 0
                 for nmea_string in f:
-                    nmea_parser.process_message(nmea_string)
+                    idx += 1
+                    try:
+                        nmea_parser.process_message(nmea_string)
+                    except nmea.IncorrectLine as e:
+                        logger.warning(e)
+                    except nmea.SkippedLine as e:
+                        pass  # raise e
         except Exception as e:
             logger.error('process_gps_input: file [%s] skipped with error [%s]', filepath, e)
 
@@ -110,7 +117,8 @@ def merge_gps(source):
 
 
 def init():
-    fullFormatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fullFormatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    # fullFormatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     sh = logging.StreamHandler()
     sh.setLevel(logging.INFO)
