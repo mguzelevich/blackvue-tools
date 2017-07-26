@@ -18,8 +18,19 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+TS_ISO_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+TS_SHORT_FORMAT = '%Y%m%d_%H%M%S'
+
 TS = strftime("%Y%m%d_%H%M%S", gmtime())
 DRY_RUN = True
+
+
+def ts_str(ts):
+    return datetime.datetime.fromtimestamp(ts / 1000.0).strftime(TS_ISO_FORMAT)
+
+
+def ts_short(ts):
+    return datetime.datetime.fromtimestamp(ts / 1000.0).strftime(TS_SHORT_FORMAT)
 
 
 def exec_cmd(cwd, cmd, *args):
@@ -61,6 +72,8 @@ def process_gps_input(src):
                 logger.debug('process_gps_input: add file [%s]', filepath)
                 input_files.append(filepath)
 
+    data = {}
+
     for i, filepath in enumerate(input_files):
         logger.info('process_gps_input: file [%s]', filepath)
         try:
@@ -69,51 +82,66 @@ def process_gps_input(src):
                 for nmea_string in f:
                     idx += 1
                     try:
-                        nmea_parser.process_message(nmea_string)
+                        ts, msg = nmea_parser.process_message(nmea_string)
+
+                        data.setdefault(ts, {'timestamp': ts_str(ts)})
+                        data[ts].update(msg)
                     except nmea.IncorrectLine as e:
-                        logger.warning(e)
+                        logger.warning('[L%s] %s', idx, e)
                     except nmea.SkippedLine as e:
                         pass  # raise e
         except Exception as e:
             logger.error('process_gps_input: file [%s] skipped with error [%s]', filepath, e)
 
-    return nmea_parser.get_data()
+    return data
 
 
-def merge_gps(source):
-    input_data = process_gps_input(source)
-#        print(input_data)
+def merge_gps(source, dst):
+    nmea_data = process_gps_input(source)
+#        print(nmea_data)
 
-    keys = sorted(input_data.keys())
+    keys = sorted(nmea_data.keys())
     chunks = {}
 
     start_ts = keys[0] if len(keys) else None
     last_ts = None
 
     chunk = {
-        '_start': datetime.datetime.fromtimestamp(start_ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        '_start': ts_str(start_ts),
         'points': [],
     }
 
     for i, ts in enumerate(keys):
         if last_ts and ts - last_ts > 5000:
-            chunk['_end'] = datetime.datetime.fromtimestamp(last_ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+            chunk['_end'] = ts_str(last_ts)
             chunks[(start_ts, last_ts)] = chunk
             chunk = {
-                '_start': datetime.datetime.fromtimestamp(start_ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                '_start': ts_str(start_ts),
                 'points': [],
             }
             start_ts = ts
-        chunk['points'].append(input_data[ts])
+        chunk['points'].append(nmea_data[ts])
         last_ts = ts
     if chunk:
-        chunk['_end'] = datetime.datetime.fromtimestamp(last_ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        chunk['_end'] = ts_str(last_ts)
         chunks[(start_ts, last_ts)] = chunk
 
     for i, ch in enumerate(chunks):
-        logger.debug('%s. %s', i, (chunks[ch]['_start'], chunks[ch]['_end']))
+        chunk = chunks[ch]
+        ts_start, ts_end = ch
+        ts_str_start, ts_str_end = chunk['_start'], chunk['_end']
 
-    print(json.dumps(chunks[ch], sort_keys=True, indent='  '))
+        logger.debug('%s. %s', i, (ts_str_start, ts_str_end))
+
+        filepath = os.path.join(dst, 'track_{0}_{1}.nmea'.format(ts_short(ts_start), ts_short(ts_end)))
+        with open(filepath, mode='w+') as f:
+            f.write(json.dumps(chunk, sort_keys=True, indent='  '))
+
+        filepath = os.path.join(dst, 'track_{0}_{1}.geojson'.format(ts_short(ts_start), ts_short(ts_end)))
+        with open(filepath, mode='w+') as f:
+            geojson = {}
+            for i, p in chunk['points']:
+                pass
 
 
 def init():
@@ -163,8 +191,7 @@ def main():
     logger.debug(args)
 
     if args.merge_gps:
-        result = merge_gps(args.src)
-        dst = args.dst
+        result = merge_gps(args.src, args.dst)
     else:
         raise RuntimeError('Unknown mode')
 

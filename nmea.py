@@ -59,11 +59,6 @@ class NMEA(object):
             'TXT': self.handler_TXT,  # ???
         }
 
-        self.data = {}
-
-    def get_data(self):
-        return self.data
-
     def process_message(self, nmea_string):
         nmea_string = nmea_string.strip()
         if not nmea_string:
@@ -81,9 +76,9 @@ class NMEA(object):
         args = args.split(',')
 
         logger.debug('[%s] %s fields %s len %s', ts, cmd, args, len(args))
+        msg = self.handlers.get(cmd, self.handler_dafault)(cmd, *args)
 
-        self.data.setdefault(ts, {'timestamp': datetime.datetime.fromtimestamp(ts / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%fZ')})
-        self.data[ts].update(self.handlers.get(cmd, self.handler_dafault)(cmd, *args))
+        return (ts, msg)
 
     def handler_dafault(self, cmd, *args):
         logger.warning('unknown command [%s] %s', cmd, args)
