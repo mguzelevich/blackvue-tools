@@ -34,3 +34,16 @@ tmpl = """
   ]
 }
 """
+
+tmpl = """
+{
+  "type":"FeatureCollection",
+  "features":[
+    {
+      "type":"Feature",
+      "geometry":{"type":"LineString","coordinates":[[102,0],[103,1],[104,0],[105,1]]},
+      "properties":{"prop0":"value0","prop1":0}
+    }
+  ]
+}
+"""
