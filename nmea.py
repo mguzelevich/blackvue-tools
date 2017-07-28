@@ -9,26 +9,38 @@ logger = logging.getLogger(__name__)
 
 
 # [1500310610235]$GPGLL,5355.68249,N,02738.67852,E,135648.00,A,A*63
-LINE_RE_STRING = r'\[([0-9]+)\]\$GP([A-Z]+),(.+)'
+LINE_RE_STRING = r'\[([0-9]+)\]\$GP([A-Z]+),(.+)\*([0-9a-zA-Z]+)'
 LINE_RE = re.compile(LINE_RE_STRING)
 
 
-def lat(nmea_lat, north_south):
-    lat_value = 0.0
+def dm2d(nmea_value):
+    """
+    According to the NMEA Standard, Latitude and Longitude are output in the format Degrees, Minutes and
+    (Decimal) Fractions of Minutes. To convert to Degrees and Fractions of Degrees, or Degrees, Minutes, Seconds
+    and Fractions of seconds, the 'Minutes' and 'Fractional Minutes' parts need to be converted. In other words: If
+    the GPS Receiver reports a Latitude of 4717.112671 North and Longitude of 00833.914843 East, this is
+        Latitude 47 Degrees, 17.112671 Minutes
+        Longitude 8 Degrees, 33.914843 Minutes
+    """
+    value = 0.0
     try:
-        lat_value = float(nmea_lat) / 100.0
+        fv = float(nmea_value)
+        degrees = float(int(fv / 100.0))
+        minutes = fv - degrees * 100
+        value = degrees + minutes / 60
+        # print(nmea_value, fv, degrees, minutes, value)
     except Exception as e:
-        raise RuntimeError(nmea_lat, e)
-    return lat_value
+        # logger.error(e)
+        raise RuntimeError(value, e)
+    return value
+
+
+def lat(nmea_lat, north_south):
+    return dm2d(nmea_lat)
 
 
 def lng(nmea_lng, east_west):
-    lng_value = 0.0
-    try:
-        lng_value = float(nmea_lng) / 100.0
-    except Exception as e:
-        raise RuntimeError(nmea_lng, e)
-    return lng_value
+    return dm2d(nmea_lng)
 
 
 def nmea_datetime(fix_date, fix_time):
@@ -38,11 +50,27 @@ def nmea_datetime(fix_date, fix_time):
     return dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
-class SkippedLine(Exception):
+class ProcessMessageException(Exception):
     pass
 
 
-class IncorrectLine(Exception):
+class ProcessMessageSkippedLineException(ProcessMessageException):
+    pass
+
+
+class ProcessMessageIncorrectLineException(Exception):
+    pass
+
+
+class ProcessMessageHandlerException(Exception):
+    pass
+
+
+class ProcessMessageRegExpCheckException(Exception):
+    pass
+
+
+class ProcessMessageArgsCheckException(Exception):
     pass
 
 
@@ -50,33 +78,42 @@ class NMEA(object):
 
     def __init__(self):
         self.handlers = {
-            'RMC': self.handler_RMC,  # minimum recommended data
-            'VTG': self.handler_VTG,  # vector track and speed over ground
-            'GGA': self.handler_GGA,  # fix data
-            'GSA': self.handler_GSA,  # overall satellite reception data, missing on some Garmin models
-            'GSV': self.handler_GSV,  # detailed satellite data, missing on some Garmin models
-            'GLL': self.handler_GLL,  # Lat/Lon data - earlier G-12's do not transmit this
-            'TXT': self.handler_TXT,  # ???
+            'RMC': (self.handler_RMC, 12),  # minimum recommended data
+            'VTG': (self.handler_VTG, 9),  # vector track and speed over ground
+            'GGA': (self.handler_GGA, 14),  # fix data
+            'GLL': (self.handler_GLL, 7),  # Lat/Lon data - earlier G-12's do not transmit this
+            'TXT': (self.handler_TXT, 4),  # ???
+
+            'GSA': (self.handler_GSA, 0),  # overall satellite reception data, missing on some Garmin models
+            'GSV': (self.handler_GSV, 0),  # detailed satellite data, missing on some Garmin models
         }
 
     def process_message(self, nmea_string):
         nmea_string = nmea_string.strip()
         if not nmea_string:
-            raise SkippedLine()
+            raise ProcessMessageSkippedLineException()
 
         m = LINE_RE.match(nmea_string)
         if not m:
-            raise IncorrectLine(repr(nmea_string))
+            raise ProcessMessageRegExpCheckException(repr(nmea_string), 'regexp check error')
 
-        ts, cmd, args = m.group(1), m.group(2), m.group(3)
-        ts = int(ts)
+        ts, cmd, args, checksum = int(m.group(1)), m.group(2), m.group(3), m.group(4)
+        handler, args_count = self.handlers.get(cmd, (self.handler_dafault, 0))
 
         # print('A: {0} -> {1}'.format(line, (ts, cmd, args)))
-        args, checksum = args.split('*')
         args = args.split(',')
+        if args_count and args_count != len(args):
+            raise ProcessMessageArgsCheckException(
+                repr(nmea_string), '%s args_count error %s != %s' % (cmd, len(args), args_count))
 
-        logger.debug('[%s] %s fields %s len %s', ts, cmd, args, len(args))
-        msg = self.handlers.get(cmd, self.handler_dafault)(cmd, *args)
+        msg = None
+        logger.debug('[%s] %s. %s fields %s CS=%s', ts, cmd, len(args), args, checksum)
+        try:
+            msg = handler(cmd, *args)
+        except ProcessMessageHandlerException as e:
+            raise ProcessMessageHandlerException('{0} {1}'.format(repr(nmea_string), e))
+        except Exception as e:
+            raise ProcessMessageException('UNKNOWN ERROR {0} {1}'.format(repr(nmea_string), e))
 
         return (ts, msg)
 

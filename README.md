@@ -77,6 +77,14 @@ Using third party microSD cards can affect dashcams’ performance and in some c
 
 Every BlackVue dashcam comes with an original BlackVue microSD card. In case it is missing or replaced by a third-party microSD card at the time of purchase, please contact the seller to make sure you get a genuine BlackVue microSD card.
 
+# etc
+
+
+`*.3gf` file is a BlackVue Dashcam Accelerometer Data.
+`*.thm` file is video preview files
+`*.gps` file is NMEA telemerty files
+`*.mp4` file is video
+
 # links
 
 http://aprs.gids.nl/nmea/

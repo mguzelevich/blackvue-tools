@@ -12,6 +12,7 @@ import sys
 
 from time import gmtime, strftime
 
+import geojson
 import nmea
 
 import logging
@@ -86,12 +87,19 @@ def process_gps_input(src):
 
                         data.setdefault(ts, {'timestamp': ts_str(ts)})
                         data[ts].update(msg)
-                    except nmea.IncorrectLine as e:
-                        logger.warning('[L%s] %s', idx, e)
-                    except nmea.SkippedLine as e:
+                    except nmea.ProcessMessageSkippedLineException as e:
                         pass  # raise e
+                    except nmea.ProcessMessageException as e:
+                        logger.warning('[L%s PM] %s', idx, e)
+                    except nmea.ProcessMessageIncorrectLineException as e:
+                        logger.warning('[L%s IL] %s', idx, e)
+                    except nmea.ProcessMessageRegExpCheckException as e:
+                        logger.warning('[L%s REC] %s', idx, e)
+                    except nmea.ProcessMessageArgsCheckException as e:
+                        logger.warning('[L%s ACH] %s', idx, e)
         except Exception as e:
             logger.error('process_gps_input: file [%s] skipped with error [%s]', filepath, e)
+            raise e
 
     return data
 
@@ -139,9 +147,12 @@ def merge_gps(source, dst):
 
         filepath = os.path.join(dst, 'track_{0}_{1}.geojson'.format(ts_short(ts_start), ts_short(ts_end)))
         with open(filepath, mode='w+') as f:
-            geojson = {}
-            for i, p in chunk['points']:
-                pass
+            gj = geojson.GeoJson()
+            for i, p in enumerate(chunk['points']):
+                ll = [p.get('RMC_lng'), p.get('RMC_lat')]
+                if ll[0] and ll[1]:
+                    gj.add_point(ll)
+            f.write(gj.dump())
 
 
 def init():
@@ -160,6 +171,7 @@ def init():
     logger.addHandler(fh)
 
     nmea.logger = logger
+    geojson.logger = logger
 
 
 def main():
@@ -173,6 +185,9 @@ def main():
 
     parser.add_argument('--debug', action='store_true', help='debug mode')
     parser.add_argument('--dry-run', action='store_true', help='dry-run mode')
+
+    parser.add_argument('--nmea', action='store_true', help='save nmea files')
+    # parser.add_argument('--geojson', action='store_true', help='save geojson files')
 
     parser.add_argument('--src', default='src', help='src path')
     parser.add_argument('--dst', default='dst', help='dst path')
