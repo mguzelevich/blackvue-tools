@@ -51,27 +51,62 @@ def nmea_datetime(fix_date, fix_time):
 
 
 class ProcessMessageException(Exception):
-    pass
+    exception = 'PME'
+
+    def __init__(self, msg=''):
+        self.msg = msg
+
+    def message(self):
+        return repr(self.msg)
+
+    def log(self, lineno):
+        return '[L{lineno} {exception}] {message} [{msg}]'.format(
+            lineno=lineno, exception=self.exception, msg=repr(self.msg), message=self.message()
+        )
 
 
 class ProcessMessageSkippedLineException(ProcessMessageException):
-    pass
+
+    exception = 'SKL'
+
+    def __init__(self):
+        ProcessMessageException.__init__(self)
 
 
-class ProcessMessageIncorrectLineException(Exception):
-    pass
+class ProcessMessageIncorrectLineException(ProcessMessageException):
+
+    exception = 'IKL'
+
+    def __init__(self, msg):
+        ProcessMessageException.__init__(self, msg=msg)
 
 
-class ProcessMessageHandlerException(Exception):
-    pass
+class ProcessMessageHandlerException(ProcessMessageException):
+
+    def __init__(self):
+        ProcessMessageException.__init__(self)
 
 
-class ProcessMessageRegExpCheckException(Exception):
-    pass
+class ProcessMessageRegExpCheckException(ProcessMessageException):
+
+    exception = 'REE'
+
+    def __init__(self, msg):
+        ProcessMessageException.__init__(self, msg=msg)
 
 
-class ProcessMessageArgsCheckException(Exception):
-    pass
+class ProcessMessageArgsCheckException(ProcessMessageException):
+
+    exception = 'ARG'
+
+    def __init__(self, msg, cmd, got, expected):
+        ProcessMessageException.__init__(self, msg=msg)
+        self.cmd = cmd
+        self.got = got
+        self.expected = expected
+
+    def message(self):
+        return '{0}: expected {1}, got {2}'.format(self.cmd, self.got, self.expected)
 
 
 class NMEA(object):
@@ -95,7 +130,7 @@ class NMEA(object):
 
         m = LINE_RE.match(nmea_string)
         if not m:
-            raise ProcessMessageRegExpCheckException(repr(nmea_string), 'regexp check error')
+            raise ProcessMessageRegExpCheckException(nmea_string)
 
         ts, cmd, args, checksum = int(m.group(1)), m.group(2), m.group(3), m.group(4)
         handler, args_count = self.handlers.get(cmd, (self.handler_dafault, 0))
@@ -103,8 +138,7 @@ class NMEA(object):
         # print('A: {0} -> {1}'.format(line, (ts, cmd, args)))
         args = args.split(',')
         if args_count and args_count != len(args):
-            raise ProcessMessageArgsCheckException(
-                repr(nmea_string), '%s args_count error %s != %s' % (cmd, len(args), args_count))
+            raise ProcessMessageArgsCheckException(nmea_string, cmd, len(args), args_count)
 
         msg = None
         logger.debug('[%s] %s. %s fields %s CS=%s', ts, cmd, len(args), args, checksum)

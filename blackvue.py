@@ -90,13 +90,7 @@ def process_gps_input(src):
                     except nmea.ProcessMessageSkippedLineException as e:
                         pass  # raise e
                     except nmea.ProcessMessageException as e:
-                        logger.warning('[L%s PM] %s', idx, e)
-                    except nmea.ProcessMessageIncorrectLineException as e:
-                        logger.warning('[L%s IL] %s', idx, e)
-                    except nmea.ProcessMessageRegExpCheckException as e:
-                        logger.warning('[L%s REC] %s', idx, e)
-                    except nmea.ProcessMessageArgsCheckException as e:
-                        logger.warning('[L%s ACH] %s', idx, e)
+                        logger.warning(e.log(idx))
         except Exception as e:
             logger.error('process_gps_input: file [%s] skipped with error [%s]', filepath, e)
             raise e
