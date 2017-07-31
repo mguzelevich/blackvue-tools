@@ -41,11 +41,63 @@ tmpl = """
     {
       "type":"Feature",
       "geometry":{"type":"LineString","coordinates":[[102,0],[103,1],[104,0],[105,1]]},
-      "properties":{"prop0":"value0","prop1":0}
+      "properties":{"stroke":"red"}
     }
   ]
 }
 """
+
+
+class LineString(object):
+
+    def __init__(self):
+        self.coordinates = []
+
+    def add_point(self, point):
+        # lat, lon = point
+        # logger.debug('add %s', point)
+        self.coordinates.append(point)
+
+    def data(self):
+        tmpl = {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": []
+            },
+            "properties": {}
+        }
+        for p in self.coordinates:
+            if p:
+                tmpl['geometry']['coordinates'].append(p)
+        return tmpl
+
+    def dump(self):
+        return self.data
+
+
+class GeoJsonFeatureCollection(object):
+
+    def __init__(self):
+        self.features = []
+
+    def add_feature(self, feature):
+        # lat, lon = point
+        # logger.debug('add %s', point)
+        self.features.append(feature)
+
+    def data(self):
+        tmpl = {
+            "type": "FeatureCollection",
+            "features": []
+        }
+        for f in self.features:
+            if f.coordinates:
+                tmpl['features'].append(f.data())
+        return tmpl
+
+    def dump(self):
+        return json.dumps(self.data(), sort_keys=True, indent='  ')
 
 
 class GeoJson(object):
@@ -60,9 +112,7 @@ class GeoJson(object):
                         "type": "LineString",
                         "coordinates": []
                     },
-                    "properties":{
-                        "prop0": "value0", "prop1": 0
-                    }
+                    "properties": {"stroke": "red"}
                 }
             ]
         }

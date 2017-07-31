@@ -3,15 +3,21 @@
 ##
 
 ```
-python3 blackvue.py --debug --src ./examples --merge-gps > /tmp/out.json
+cat ./examples/*.gps | python3 blackvue.py --process-gps --geojson --split-track > /tmp/t.geojson
+```
 
-cat ./examples/*.gps | python3 blackvue.py --debug --merge-gps > /tmp/out.json 2> /tmp/log
+## usage
+
+```
+
+
 ```
 
 ## set label to card
 
 ```
-...
+sudo e2label /dev/sdc1 blackvue
+sudo ntfslabel /dev/sdb1 blackvue
 ```
 
 ## mount 
@@ -25,6 +31,18 @@ sudo mount -t vfat -o rw,codepage=866,iocharset=utf8,uid=1000,gid=1000,fmask=011
 ```
 sudo rsync -a /mnt/ext /home/pub/blackvue
 ```
+# etc
+
+
+`*.3gf` file is a BlackVue Dashcam Accelerometer Data.
+`*.thm` file is video preview files
+`*.gps` file is NMEA telemerty files
+`*.mp4` file is video
+
+# links
+
+http://aprs.gids.nl/nmea/
+
 
 ## Firmware Upgrade Guide
 
@@ -46,8 +64,7 @@ Insert the BlackVue SD card in your computer using the USB reader provided with 
 
 STEP-5
 
-Format the microSD card in the Viewer.
-On Mac, after clicking the Format button, choose MS-DOS (FAT) in the Disk Utility.
+Format the microSD card in the Viewer. On Mac, after clicking the Format button, choose MS-DOS (FAT) in the Disk Utility.
 
 STEP-6
 
@@ -76,15 +93,3 @@ The reason is that dashcams put microSD cards under higher stress than most elec
 Using third party microSD cards can affect dashcams’ performance and in some cases, force the dashcam to reboot randomly during recording. Although the basic requirement of the microSD cards for BlackVue dashcams is Class 10 or U1 and that the SD card should be formatted as FAT32 [Windows] or MS-DOS (FAT) [Mac OS], we cannot guarantee the perfect performance of cards from other manufacturers, as even cards with same specifications may vary from batch to batch.
 
 Every BlackVue dashcam comes with an original BlackVue microSD card. In case it is missing or replaced by a third-party microSD card at the time of purchase, please contact the seller to make sure you get a genuine BlackVue microSD card.
-
-# etc
-
-
-`*.3gf` file is a BlackVue Dashcam Accelerometer Data.
-`*.thm` file is video preview files
-`*.gps` file is NMEA telemerty files
-`*.mp4` file is video
-
-# links
-
-http://aprs.gids.nl/nmea/
