@@ -20,17 +20,21 @@ sudo e2label /dev/sdc1 blackvue
 sudo ntfslabel /dev/sdb1 blackvue
 ```
 
-## mount 
+## mount  && sync
 
 ```
-sudo mount -t vfat -o rw,codepage=866,iocharset=utf8,uid=1000,gid=1000,fmask=0111  /dev/sdb1 /mnt/ext
+sudo mount /dev/disk/by-label/mgu_linux /mnt/ext
+sudo mount -t vfat -o rw,codepage=866,iocharset=utf8,uid=1000,gid=1000,fmask=0111  /dev/disk/by-label/Blackvue /mnt/ext1
+sudo rsync --info=progress2 --progress -avz --exclude '*.thm' --exclude '*.mp4' /mnt/ext1/BlackVue/Record/* /mnt/ext/blackvue/Record
+sudo rsync --info=progress2 --progress -avz --exclude '*.thm' /mnt/ext1/BlackVue/Record/* /mnt/ext/blackvue/Record
 ```
 
-## sync
+## merge raw gps data
 
 ```
-sudo rsync -a /mnt/ext /home/pub/blackvue
+sh ./merge_gps.sh ../tracks/gps ../out
 ```
+
 # etc
 
 
