@@ -1,0 +1,26 @@
+{
+	"name": "blackvue",
+	"version": "1.0.3",
+	"description": "Allows interfacing with Blackvue dashcams over local Wi-Fi connection",
+	"keywords": [
+		"blackvue",
+		"dashcam"
+	],
+	"homepage": "https://github.com/DoctorMcKay/node-blackvue",
+	"bugs": {
+		"url": "https://github.com/DoctorMcKay/node-blackvue/issues"
+	},
+	"license": "MIT",
+	"author": {
+		"name": "Alex Corn",
+		"email": "mckay@doctormckay.com",
+		"url": "https://www.doctormckay.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/DoctorMcKay/node-blackvue.git"
+	},
+	"engines": {
+		"node": ">=7.6.0"
+	}
+}
