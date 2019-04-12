@@ -40,7 +40,7 @@ sh ./merge_gps.sh ../tracks/gps ../out
 
 `*.3gf` file is a BlackVue Dashcam Accelerometer Data.
 `*.thm` file is video preview files
-`*.gps` file is NMEA telemerty files
+`*.gps` file is NMEA telemetry files
 `*.mp4` file is video
 
 # links
